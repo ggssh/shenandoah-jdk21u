@@ -522,6 +522,7 @@ private:
   ShenandoahGeneration*      _global_generation;
   ShenandoahOldGeneration*   _old_generation;
 
+public:
   ShenandoahControlThread*   _control_thread;
   ShenandoahRegulatorThread* _regulator_thread;
   ShenandoahCollectorPolicy* _shenandoah_policy;

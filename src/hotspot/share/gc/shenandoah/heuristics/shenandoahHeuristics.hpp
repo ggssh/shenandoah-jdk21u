@@ -101,6 +101,8 @@ protected:
 
   double _cycle_start;
   double _last_cycle_end;
+  double _cycle_start_user;
+  double _last_cycle_end_user;
 
   size_t _gc_times_learned;
   intx _gc_time_penalties;
@@ -163,6 +165,7 @@ public:
   virtual void initialize();
 
   double elapsed_cycle_time() const;
+  double elapsed_cycle_user_time() const;
 };
 
 #endif // SHARE_GC_SHENANDOAH_HEURISTICS_SHENANDOAHHEURISTICS_HPP
