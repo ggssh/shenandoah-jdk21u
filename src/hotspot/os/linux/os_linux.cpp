@@ -1597,11 +1597,11 @@ void os::dump_accum_thread_majflt_minflt_and_cputime(const char *prefix) {
     njt_majflt, njt_minflt, njt_user_time, njt_sys_time);
 }
 
-long os::get_accum_thread_usertime() {
+// in millisecond
+void os::get_accum_njthread_time(long* njt_user_time, long* njt_sys_time) {
   pid_t tid;
   char proc_name[64];
   long majflt, minflt, user_time, sys_time;
-  long njt_user_time = 0;
 
   // Get non-jthread stats
   for (NonJavaThread::Iterator njti; !njti.end(); njti.step()) {
@@ -1609,26 +1609,40 @@ long os::get_accum_thread_usertime() {
     tid = njt->osthread()->thread_id();
     snprintf(proc_name, 64, "/proc/self/task/%d/stat", tid);
     proc_majflt_minflt_and_cputime(proc_name, &majflt, &minflt, &user_time, &sys_time);
-    njt_user_time += user_time;
+    *njt_user_time += user_time;
+    *njt_sys_time += sys_time;
   }
-
-  return njt_user_time;
 }
 
-size_t os::get_cur_thread_usertime() {
+// in millisecond
+void os::get_accum_jthread_time(long* jt_user_time, long* jt_sys_time) {
   pid_t tid;
   char proc_name[64];
   long majflt, minflt, user_time, sys_time;
-  size_t njt_user_time;
+
+  // Get jthread stats
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *jt = jtiwh.next(); ) {
+    tid = jt->osthread()->thread_id();
+    snprintf(proc_name, 64, "/proc/self/task/%d/stat", tid);
+    proc_majflt_minflt_and_cputime(proc_name, &majflt, &minflt, &user_time, &sys_time);
+    *jt_user_time += user_time;
+    *jt_sys_time += sys_time;
+  }
+}
+
+// in millisecond
+void os::get_cur_thread_time(long* t_user_time, long* t_sys_time) {
+  pid_t tid;
+  char proc_name[64];
+  long majflt, minflt, user_time, sys_time;
 
   tid = Thread::current()->osthread()->thread_id();
 
   // Get non-jthread stats
   snprintf(proc_name, 64, "/proc/self/task/%d/stat", tid);
   proc_majflt_minflt_and_cputime(proc_name, &majflt, &minflt, &user_time, &sys_time);
-  njt_user_time = (size_t)user_time;
-
-  return njt_user_time;
+  *t_user_time = (size_t)user_time;
+  *t_sys_time = (size_t)sys_time;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
