@@ -136,7 +136,7 @@ public:
   void adjust_margin_of_error(double amount);
   void adjust_spike_threshold(double amount);
 
-protected:
+public:
   ShenandoahAllocationRate _allocation_rate;
   ShenandoahAllocationRateUser _allocation_rate_user;
 

@@ -49,6 +49,7 @@
 #include "services/memoryManager.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.hpp"
+#include <cstddef>
 
 class ConcurrentGCTimer;
 class ObjectIterateScanRootClosure;
@@ -216,6 +217,8 @@ public:
   bool supports_concurrent_gc_breakpoints() const override {
     return true;
   }
+
+  void incr_alloc_and_log(size_t bytes);
 
 // ---------- Heap counters and metrics
 //

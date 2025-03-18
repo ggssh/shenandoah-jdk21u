@@ -69,6 +69,7 @@
 #include "services/memTracker.hpp"
 #include "services/runtimeService.hpp"
 #include "utilities/align.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/decoder.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/events.hpp"
@@ -77,7 +78,9 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
+#include "utilities/ticks.hpp"
 #include "utilities/vmError.hpp"
+#include "atomic"
 #if INCLUDE_JFR
 #include "jfr/jfrEvents.hpp"
 #endif
@@ -1509,6 +1512,7 @@ static inline void proc_majflt_minflt_and_cputime(const char* fname, long* majfl
                  &ldummy, minflt, &ldummy, majflt, &ldummy,
                  user_time, sys_time);
   if (count != 15 - 2) return ;
+  // 10 millisecond
   *user_time = *user_time * (1000 / clock_tics_per_sec);
   *sys_time = *sys_time * (1000 / clock_tics_per_sec);
 }
@@ -1630,7 +1634,40 @@ void os::get_accum_jthread_time(long* jt_user_time, long* jt_sys_time) {
   }
 }
 
-// in millisecond
+void os::get_accum_jthread_time_by_sub(long* jt_user_time, long* jt_sys_time) {
+  pid_t tid;
+  char proc_name[64];
+  long majflt, minflt, user_time, sys_time;
+  long proc_majflt, proc_minflt, proc_user_time, proc_sys_time;
+  long njt_majflt, njt_minflt, njt_user_time, njt_sys_time;
+
+  // Get non-jthread stats
+  njt_majflt = njt_minflt = njt_user_time = njt_sys_time = 0;
+  for (NonJavaThread::Iterator njti; !njti.end(); njti.step()) {
+    NonJavaThread* njt = njti.current();
+    tid = njt->osthread()->thread_id();
+    snprintf(proc_name, 64, "/proc/self/task/%d/stat", tid);
+    proc_majflt_minflt_and_cputime(proc_name, &majflt, &minflt, &user_time, &sys_time);
+    njt_majflt += majflt;
+    njt_minflt += minflt;
+    njt_user_time += user_time;
+    njt_sys_time += sys_time;
+  }
+
+  // Get process stats
+  proc_majflt_minflt_and_cputime("/proc/self/stat", &proc_majflt, &proc_minflt, &proc_user_time, &proc_sys_time);
+
+  // Get jthread stats by process - non-jthread since some mutator thread
+  // may create or exit.
+  // log_info(gc)("%s JavaThread(Majflt=%ld, Minflt=%ld, user=%ldms, sys=%ldms), NonJavaThread(Majflt=%ld, Minflt=%ld, user=%ldms, sys=%ldms)",
+  //   prefix,
+  //   proc_majflt-njt_majflt, proc_minflt-njt_minflt, proc_user_time-njt_user_time, proc_sys_time-njt_sys_time,
+  //   njt_majflt, njt_minflt, njt_user_time, njt_sys_time);
+  *jt_user_time = (proc_user_time - njt_user_time);
+  *jt_sys_time = (proc_sys_time - njt_sys_time);
+}
+
+// in microsecond
 void os::get_cur_thread_time(long* t_user_time, long* t_sys_time) {
   pid_t tid;
   char proc_name[64];
@@ -1639,10 +1676,15 @@ void os::get_cur_thread_time(long* t_user_time, long* t_sys_time) {
   tid = Thread::current()->osthread()->thread_id();
 
   // Get non-jthread stats
-  snprintf(proc_name, 64, "/proc/self/task/%d/stat", tid);
-  proc_majflt_minflt_and_cputime(proc_name, &majflt, &minflt, &user_time, &sys_time);
-  *t_user_time = (size_t)user_time;
-  *t_sys_time = (size_t)sys_time;
+  // snprintf(proc_name, 64, "/proc/self/task/%d/stat", tid);
+  // proc_majflt_minflt_and_cputime(proc_name, &majflt, &minflt, &user_time, &sys_time);
+  struct rusage usage;
+  int retval = getrusage(RUSAGE_THREAD, &usage);
+  if (retval != 0) ShouldNotReachHere();
+  user_time = usage.ru_utime.tv_sec * 1000UL * 1000 + usage.ru_utime.tv_usec;
+  sys_time = usage.ru_stime.tv_sec * 1000UL * 1000 + usage.ru_stime.tv_usec;
+  *t_user_time = (long)user_time;
+  *t_sys_time = (long)sys_time;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

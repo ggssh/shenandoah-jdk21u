@@ -179,7 +179,7 @@ size_t ShenandoahYoungHeuristics::bytes_of_allocation_runway_before_gc_trigger(s
   size_t penalties      = capacity * _gc_time_penalties / 100;
 
   double rate = _allocation_rate.sample(allocated);
-  double rate_user = _allocation_rate_user.sample(allocated);
+  // double rate_user = _allocation_rate_user.sample(allocated);
   // log_info(gc)("Sampled Allocation rate: %lf", rate);
 
   // At what value of available, would avg and spike triggers occur?
