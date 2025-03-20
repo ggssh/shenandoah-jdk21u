@@ -696,6 +696,8 @@ void ShenandoahControlThread::service_concurrent_cycle(ShenandoahHeap* heap,
   os::dump_accum_thread_majflt_minflt_and_cputime("beforeConcCycle");
   GCMajfltStats gc_majflt_stats;
   gc_majflt_stats.start();
+  heap->reset_copy_bytes_during_gc();
+  // todo: reset timestamp
   if (gc.collect(cause)) {
     // Cycle is complete
     generation->record_success_concurrent(gc.abbreviated());
@@ -705,6 +707,7 @@ void ShenandoahControlThread::service_concurrent_cycle(ShenandoahHeap* heap,
       ShenandoahHeuristics* young_heuristics = regulator_thread->_young_heuristics;
       // when ShenandoahGCHeuristics is not set, use the default value(ShenandoahAdaptiveHeuristics)
       ShenandoahAdaptiveHeuristics* adaptive_heuristics = (ShenandoahAdaptiveHeuristics*) young_heuristics;
+      adaptive_heuristics->_copy_bytes_during_gc = heap->copy_bytes_during_gc();
       adaptive_heuristics->print_info();
     }
   } else {

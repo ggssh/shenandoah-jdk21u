@@ -50,6 +50,7 @@ ShenandoahHeuristics::ShenandoahHeuristics(ShenandoahSpaceInfo* space_info) :
   _cycle_start(os::elapsedTime()),
   _last_cycle_end(0),
   _last_cycle_end_user(0),
+  _last_cycle_end_total(0),
   _gc_times_learned(0),
   _gc_time_penalties(0),
   _gc_cycle_time_history(new TruncatedSeq(Moving_Average_Samples, ShenandoahAdaptiveDecayFactor)),
@@ -65,10 +66,14 @@ ShenandoahHeuristics::ShenandoahHeuristics(ShenandoahSpaceInfo* space_info) :
 
   _region_data = NEW_C_HEAP_ARRAY(RegionData, num_regions, mtGC);
 
-  double real_time, user_time, system_time;
-  bool valid = os::getTimesSecs(&real_time, &user_time, &system_time);
+  // double real_time, user_time, system_time;
+  // bool valid = os::getTimesSecs(&real_time, &user_time, &system_time);
+  // _cycle_start_user = user_time;
+  
+  long user_time = 0, sys_time = 0;
+  os::get_accum_njthread_time(&user_time, &sys_time);
   _cycle_start_user = user_time;
-
+  _cycle_start_total = user_time + sys_time;
 }
 
 ShenandoahHeuristics::~ShenandoahHeuristics() {
@@ -184,16 +189,24 @@ void ShenandoahHeuristics::choose_collection_set(ShenandoahCollectionSet* collec
 
 void ShenandoahHeuristics::record_cycle_start() {
   _cycle_start = os::elapsedTime();
-  double real_time, user_time, system_time;
-  bool valid = os::getTimesSecs(&real_time, &user_time, &system_time);
+  // double real_time, user_time, system_time;
+  // bool valid = os::getTimesSecs(&real_time, &user_time, &system_time);
+  // _cycle_start_user = user_time;
+  long user_time = 0, sys_time = 0;
+  os::get_accum_njthread_time(&user_time, &sys_time);
   _cycle_start_user = user_time;
+  _cycle_start_total = user_time + sys_time;
 }
 
 void ShenandoahHeuristics::record_cycle_end() {
   _last_cycle_end = os::elapsedTime();
-  double real_time, user_time, system_time;
-  bool valid = os::getTimesSecs(&real_time, &user_time, &system_time);
+  // double real_time, user_time, system_time;
+  // bool valid = os::getTimesSecs(&real_time, &user_time, &system_time);
+  // _last_cycle_end_user = user_time;
+  long user_time = 0, sys_time = 0;
+  os::get_accum_njthread_time(&user_time, &sys_time);
   _last_cycle_end_user = user_time;
+  _last_cycle_end_total = user_time + sys_time;
 }
 
 bool ShenandoahHeuristics::should_start_gc() {
@@ -298,7 +311,18 @@ double ShenandoahHeuristics::elapsed_cycle_time() const {
 }
 
 double ShenandoahHeuristics::elapsed_cycle_user_time() const {
-  double real_time, user_time, system_time;
-  bool valid = os::getTimesSecs(&real_time, &user_time, &system_time);
-  return user_time - _cycle_start_user;
+  // double real_time, user_time, system_time;
+  // bool valid = os::getTimesSecs(&real_time, &user_time, &system_time);
+  // return user_time - _cycle_start_user;
+  long user_time = 0, sys_time = 0;
+  os::get_accum_njthread_time(&user_time, &sys_time);
+  log_info(gc) ("user_time: %ld, _cycle_start_user: %ld", user_time, _cycle_start_user);
+  return (double) (user_time - _cycle_start_user) / 1000.0;
+}
+
+double ShenandoahHeuristics::elapsed_cycle_total_time() const {
+  long user_time = 0, sys_time = 0;
+  os::get_accum_njthread_time(&user_time, &sys_time);
+  log_info(gc) ("user_time: %ld, _cycle_start_total: %ld", user_time, _cycle_start_total);
+  return (double) (user_time + sys_time - _cycle_start_total) / 1000.0;
 }

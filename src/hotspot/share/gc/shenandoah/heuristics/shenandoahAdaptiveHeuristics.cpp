@@ -62,6 +62,7 @@ const double ShenandoahAdaptiveHeuristics::MAXIMUM_CONFIDENCE = 3.291; // 99.9%
 
 ShenandoahAdaptiveHeuristics::ShenandoahAdaptiveHeuristics(ShenandoahSpaceInfo* space_info) :
   ShenandoahHeuristics(space_info),
+  _copy_bytes_during_gc(0),
   _margin_of_error_sd(ShenandoahAdaptiveInitialConfidence),
   _spike_threshold_sd(ShenandoahAdaptiveInitialSpikeThreshold),
   _last_trigger(OTHER),
@@ -501,14 +502,22 @@ void ShenandoahAdaptiveHeuristics::print_info() {
   // double avg_cycle_time = _gc_cycle_time_history->davg() + (_margin_of_error_sd * _gc_cycle_time_history->dsd());
   // log_info(gc)("%s: average GC time: %.2f ms, allocation rate: %.0f %s/s", 
   //               _space_info->name(), avg_cycle_time * 1000, byte_size_in_proper_unit(avg_alloc_rate), proper_unit_for_byte_size(avg_alloc_rate));
-  // todo: gc_cost_per_byte
-  double gc_cycle_time = elapsed_cycle_time();
-  double gc_cycle_user_time = elapsed_cycle_user_time();
+  // in milliseconds
+  double gc_cycle_time = elapsed_cycle_time() * 1000.0; // ticks
+  double gc_cycle_user_time = elapsed_cycle_user_time() * 1000.0; // njt user
+  double gc_cycle_total_time = elapsed_cycle_total_time() * 1000.0; // njt user + sys
 
-  double avg_alloc_rate = _allocation_rate.upper_bound(_margin_of_error_sd);
+  size_t copy_bytes_during_gc = _copy_bytes_during_gc;
+  // double avg_alloc_rate = _allocation_rate.upper_bound(_margin_of_error_sd);
   // only mutator thread
   // double avg_alloc_rate_user = _allocation_rate_user.upper_bound(_margin_of_error_sd);
   
   // log_info(gc)("%s: [wall] GC time: %.2f ms, allocation rate: %.0f %s/s; [user] GC time: %.2f ms, allocation rate: %.0f %s/s", 
   //                 _space_info->name(), gc_cycle_time * 1000, byte_size_in_proper_unit(avg_alloc_rate), proper_unit_for_byte_size(avg_alloc_rate), gc_cycle_user_time * 1000, byte_size_in_proper_unit(avg_alloc_rate_user), proper_unit_for_byte_size(avg_alloc_rate_user));
+  // log_info(gc) ("%s GC cost per byte:  [User]: %lf", _space_info->name())
+  if (copy_bytes_during_gc != 0) {
+    log_info(gc) ("copy_bytes_during_gc: %lu", copy_bytes_during_gc);
+    log_info(gc) ("gc_cycle_user_time: %lfms, gc_cycle_total_time: %lfms, gc_cycle_time: %lfms", gc_cycle_user_time, gc_cycle_total_time, gc_cycle_time);
+    log_info(gc) ("[User] cost_per_byte: %lfms; [User+Sys] cost_per_byte: %lfms; [Ticks] cost_per_byte: %lfms", gc_cycle_user_time / copy_bytes_during_gc, gc_cycle_total_time / copy_bytes_during_gc, gc_cycle_time / copy_bytes_during_gc);
+  }
 }

@@ -139,6 +139,7 @@ public:
 public:
   ShenandoahAllocationRate _allocation_rate;
   ShenandoahAllocationRateUser _allocation_rate_user;
+  size_t _copy_bytes_during_gc;
 
   // The margin of error expressed in standard deviations to add to our
   // average cycle time and allocation rate. As this value increases we

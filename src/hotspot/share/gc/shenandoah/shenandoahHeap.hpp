@@ -229,6 +229,7 @@ private:
   size_t _pad_for_promote_in_place;    // bytes of filler
   size_t _promotable_humongous_regions;
   size_t _regular_regions_promoted_in_place;
+  size_t _copy_bytes_during_gc;
 
   volatile size_t _soft_max_size;
   shenandoah_padding(0);
@@ -245,6 +246,10 @@ public:
 
   void increase_committed(size_t bytes);
   void decrease_committed(size_t bytes);
+
+  void increase_copy_bytes_during_gc(size_t bytes);
+  size_t copy_bytes_during_gc();
+  void reset_copy_bytes_during_gc();
 
   void reset_bytes_allocated_since_gc_start();
 

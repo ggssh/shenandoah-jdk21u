@@ -24,6 +24,7 @@
  *
  */
 
+#include "gc/shenandoah/shenandoahHeap.hpp"
 #include "precompiled.hpp"
 #include "memory/allocation.hpp"
 #include "memory/universe.hpp"
@@ -82,6 +83,7 @@
 #include "gc/shenandoah/mode/shenandoahSATBMode.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ticks.hpp"
+#include <cstddef>
 
 #if INCLUDE_JFR
 #include "gc/shenandoah/shenandoahJfrSupport.hpp"
@@ -193,6 +195,8 @@ jint ShenandoahHeap::initialize() {
   _soft_max_size = _num_regions * reg_size_bytes;
 
   _committed = _initial_size;
+
+  _copy_bytes_during_gc = 0;
 
   // Now we know the number of regions and heap sizes, initialize the heuristics.
   initialize_heuristics_generations();
@@ -768,6 +772,18 @@ void ShenandoahHeap::increase_committed(size_t bytes) {
 void ShenandoahHeap::decrease_committed(size_t bytes) {
   shenandoah_assert_heaplocked_or_safepoint();
   _committed -= bytes;
+}
+
+void ShenandoahHeap::increase_copy_bytes_during_gc(size_t bytes) {
+  Atomic::add(&_copy_bytes_during_gc, bytes, memory_order_relaxed);
+}
+
+size_t ShenandoahHeap::copy_bytes_during_gc() {
+  return Atomic::load(&_copy_bytes_during_gc); 
+}
+
+void ShenandoahHeap::reset_copy_bytes_during_gc() {
+  Atomic::store(&_copy_bytes_during_gc, (size_t) 0);
 }
 
 // For tracking usage based on allocations, it should be the case that:
